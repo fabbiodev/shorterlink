@@ -1,0 +1,114 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Аналитика ссылки</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 2rem auto;
+        }
+
+        nav {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+            nav a {
+                text-decoration: none;
+                color: #0066cc;
+            }
+
+        form {
+            display: flex;
+            gap: .5rem;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: .4rem .6rem;
+            text-align: left;
+        }
+
+        #stats {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="/">Главная</a>
+        <strong>Аналитика</strong>
+    </nav>
+
+    <h2>Показать статистику</h2>
+    <form id="form">
+        <input type="text" id="code" placeholder="Введите код ссылки" required />
+        <input type="submit" value="Показать" />
+    </form>
+
+    <div id="stats" style="display:none;">
+        <p><strong>Всего переходов:</strong> <span id="total"></span></p>
+        <p><strong>Уникальных:</strong> <span id="unique"></span></p>
+
+        <canvas id="dailyChart" height="120"></canvas>
+
+        <h3>Страны</h3>
+        <table id="countryTable">
+            <thead><tr><th>Страна</th><th>Переходов</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('dailyChart').getContext('2d');
+        let chart;
+
+        document.getElementById('form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const code = document.getElementById('code').value.trim();
+            if (!code) return;
+
+            const res = await fetch(`/api/${code}/analytics`);
+            if (!res.ok) { alert(await res.text()); return; }
+
+            const data = await res.json();
+            document.getElementById('stats').style.display = 'block';
+            total.textContent = data.totalClicks;
+            unique.textContent = data.uniqueClicks;
+
+            // таблица стран
+            const tbody = document.querySelector('#countryTable tbody');
+            tbody.innerHTML = '';
+            data.countryStats.forEach(r => {
+                const tr = tbody.insertRow();
+                tr.insertCell().textContent = r.country;
+                tr.insertCell().textContent = r.count;
+            });
+
+            // график по дням
+            const labels = data.dailyStats.map(d => d.date.split('T')[0]);
+            const counts = data.dailyStats.map(d => d.count);
+
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: [{ label: 'Переходы в день', data: counts, tension: .3 }] },
+                options: { scales: { y: { beginAtZero: true } } }
+            });
+        });
+    </script>
+
+</body>
+</html>
